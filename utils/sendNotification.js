@@ -85,20 +85,20 @@ async function sendNotification(formData) {
     `;
 
     const textContent = `
-New Spa Booking Received!
+      New Spa Booking Received!
 
-Submission Time: ${submissionDate}
+      Submission Time: ${submissionDate}
 
-Service: ${formData.service}
-Appointment Date: ${formData.date}
-Appointment Time: ${formData.time}
-Customer Name: ${formData.firstName}
-Email: ${formData.email}
-Phone: ${formData.phone}
-${formData.message ? `Message: ${formData.message}` : ""}
+      Service: ${formData.service}
+      Appointment Date: ${formData.date}
+      Appointment Time: ${formData.time}
+      Customer Name: ${formData.firstName}
+      Email: ${formData.email}
+      Phone: ${formData.phone}
+      ${formData.message ? `Message: ${formData.message}` : ""}
 
----
-This is an automated notification from Relax Thai Spa booking system.
+      ---
+      This is an automated notification from Relax Thai Spa booking system.
     `;
 
     const mailOptions = {
