@@ -6,6 +6,7 @@ require("dotenv").config();
 const { appendToSheet, getTodayRows } = require("./utils/sheets");
 const { sendNotification } = require("./utils/sendNotification");
 const { exportToExcel } = require("./utils/exportExcel");
+const { sendWhatsAppMessage } = require("./utils/sendWhatsApp.js");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -65,23 +66,31 @@ app.post("/api/submit", async (req, res) => {
 
     try {
       await sendNotification(formData);
+      await sendWhatsAppMessage({
+        to: process.env.ADMIN_WA_NUMBER,
+        templateName: "form_submission_alert",
+        params: [
+          firstName,
+          phone,
+          service,
+          `${date} ${time}`,
+          message || "No message",
+        ],
+      });
     } catch (notifError) {
-      console.error(
-        "⚠️ Notification failed (non-critical):",
-        notifError.message
-      );
+      console.error("WhatsApp notification failed:", notifError.message);
     }
 
     res.status(200).json({
       success: true,
-      message: "✨ Appointment request submitted! We'll contact you soon.",
+      message: "Appointment request submitted! We'll contact you soon.",
       data: {
         id: sheetResult.rowNumber,
         timestamp: formData.timestamp,
       },
     });
   } catch (error) {
-    console.error("❌ Error processing form submission:", error);
+    console.error("Error processing form submission:", error);
     res.status(500).json({
       success: false,
       error: "Something went wrong. Please try again.",
