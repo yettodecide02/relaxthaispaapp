@@ -7,6 +7,7 @@ const { appendToSheet, getTodayRows } = require("./utils/sheets");
 const { sendNotification } = require("./utils/sendNotification");
 const { exportToExcel } = require("./utils/exportExcel");
 const { sendWhatsAppMessage } = require("./utils/sendWhatsApp.js");
+const { getAllRows} = require("./utils/sheets");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -131,6 +132,38 @@ app.get("/api/export", async (req, res) => {
     });
   }
 });
+
+app.get("/api/export-all", async (req, res) => {
+  try {
+    const rows = await getAllRows();
+
+    if (!rows || rows.length <= 1) {
+      return res.status(404).json({
+        success: false,
+        message: "No data found in the sheet.",
+      });
+    }
+
+    const excelBuffer = await exportToExcel(rows);
+    const filename = `relax-thai-spa-bookings-all.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error("❌ Error exporting ALL data:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to export all data.",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
 
 app.get("/api/health", (req, res) => {
   res.json({

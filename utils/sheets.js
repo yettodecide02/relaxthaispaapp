@@ -118,8 +118,26 @@ async function initializeSheet() {
   }
 }
 
+async function getAllRows() {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.SHEET_ID;
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Sheet1!A:H",
+    });
+
+    return response.data.values || [];
+  } catch (error) {
+    console.error("Error fetching all rows:", error);
+    throw new Error("Failed to fetch all sheet data");
+  }
+}
+
 module.exports = {
   appendToSheet,
   getTodayRows,
   initializeSheet,
+  getAllRows,
 };
