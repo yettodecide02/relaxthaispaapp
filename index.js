@@ -3,11 +3,15 @@ const path = require("path");
 const cors = require("cors");
 require("dotenv").config();
 
-const { appendToSheet, getTodayRows } = require("./utils/sheets");
+const {
+  appendToSheet,
+  getTodayRows,
+  appendAdminToSheet,
+} = require("./utils/sheets");
 const { sendNotification } = require("./utils/sendNotification");
-const { exportToExcel } = require("./utils/exportExcel");
+const { exportToExcel, exportAdminExcel } = require("./utils/exportExcel");
 const { sendWhatsAppMessage } = require("./utils/sendWhatsApp.js");
-const { getAllRows} = require("./utils/sheets");
+const { getAllRows } = require("./utils/sheets");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -101,12 +105,126 @@ app.post("/api/submit", async (req, res) => {
   }
 });
 
-app.get("/api/export", async (req, res) => {
+app.post("/api/admin/submit", async (req, res) => {
   try {
-    const rows = await getTodayRows();
+    const {
+      name,
+      roomNo,
+      address,
+      contact,
+      paymentMode,
+      timeIn,
+      timeOut,
+      therapyName,
+      duration,
+      therapist,
+      date,
+      membership,
+    } = req.body;
+
+    if (!name || !contact || !date || !therapyName) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Please fill all required fields (name, contact, date, therapyName).",
+      });
+    }
+
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    if (!phoneRegex.test(contact)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid contact number format.",
+      });
+    }
+
+    const timestamp = new Date().toISOString();
+
+    const formData = {
+      timestamp,
+      name,
+      roomNo: roomNo || "",
+      address: address || "",
+      contact,
+      paymentMode: paymentMode || "",
+      timeIn: timeIn || "",
+      timeOut: timeOut || "",
+      therapyName,
+      duration: duration || "",
+      therapist: therapist || "",
+      date,
+      membership: membership || "",
+    };
+
+    const sheetResult = await appendAdminToSheet(formData);
+
+    if (!sheetResult.success) {
+      throw new Error(sheetResult.error);
+    }
+
+    try {
+      await sendNotification(formData);
+    } catch (notifError) {
+      console.error("Notification failed:", notifError.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Form saved successfully!",
+      data: {
+        id: sheetResult.rowNumber,
+        timestamp: formData.timestamp,
+      },
+    });
+  } catch (error) {
+    console.error("Error saving form:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error.",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+app.get("/api/admin/export", async (req, res) => {
+  try {
+    const rows = await getAllRows("admin");
 
     if (!rows || rows.length <= 1) {
       return res.status(404).json({
+        success: false,
+        message: "No admin data found",
+      });
+    }
+
+    const excelBuffer = await exportAdminExcel(rows);
+    const filename = `customervisits.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error("❌ Error exporting admin excel:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to export admin data",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/export", async (req, res) => {
+  try {
+    const rows = await getTodayRows();
+    if (!rows || rows.length <= 1) {
+      console.log("no suB");
+
+      return res.status(200).json({
         success: false,
         message: "No submissions found for today.",
       });
@@ -163,7 +281,6 @@ app.get("/api/export-all", async (req, res) => {
     });
   }
 });
-
 
 app.get("/api/health", (req, res) => {
   res.json({
