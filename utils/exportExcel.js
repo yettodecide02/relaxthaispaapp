@@ -107,7 +107,6 @@ async function exportToExcel(rows) {
     throw new Error(`Failed to generate Excel file: ${error.message}`);
   }
 }
-// 📌 EXPORT ONLY ADMIN FORMAT (your second form)
 async function exportAdminExcel(rows) {
   try {
     const workbook = new ExcelJS.Workbook();
