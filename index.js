@@ -122,11 +122,11 @@ app.post("/api/admin/submit", async (req, res) => {
       membership,
     } = req.body;
 
-    if (!name || !contact || !date || !therapyName) {
+    if (!name || !date || !therapyName) {
       return res.status(400).json({
         success: false,
         error:
-          "Please fill all required fields (name, contact, date, therapyName).",
+          "Please fill all required fields (name, date, therapyName).",
       });
     }
 
