@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const cors = require("cors");
+const PDFDocument = require("pdfkit");
 require("dotenv").config();
 
 const {
@@ -105,6 +106,17 @@ app.post("/api/submit", async (req, res) => {
   }
 });
 
+app.post("/api/admin/check-password", (req, res) => {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const { password } = req.body;
+
+  if (password === adminPassword) {
+    res.status(200).json({ ok: true });
+  } else {
+    res.status(401).json({ ok: false, error: "Incorrect password" });
+  }
+});
+
 app.post("/api/admin/submit", async (req, res) => {
   try {
     const {
@@ -120,70 +132,152 @@ app.post("/api/admin/submit", async (req, res) => {
       therapist,
       date,
       membership,
+      price,
     } = req.body;
 
-    if (!name || !date || !therapyName) {
+    if (!name || !therapyName || !date) {
       return res.status(400).json({
         success: false,
-        error:
-          "Please fill all required fields (name, date, therapyName).",
+        error: "Please fill all required fields (name, therapy name, date).",
       });
     }
 
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-    if (!phoneRegex.test(contact)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid contact number format.",
-      });
-    }
+    const sheetResult = await appendAdminToSheet(req.body);
+    if (!sheetResult.success) throw new Error("Sheet failed");
 
-    const timestamp = new Date().toISOString();
+    const doc = new PDFDocument({ size: "A4", margin: 30 });
 
-    const formData = {
-      timestamp,
-      name,
-      roomNo: roomNo || "",
-      address: address || "",
-      contact,
-      paymentMode: paymentMode || "",
-      timeIn: timeIn || "",
-      timeOut: timeOut || "",
-      therapyName,
-      duration: duration || "",
-      therapist: therapist || "",
-      date,
-      membership: membership || "",
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'inline; filename="therapy-form.pdf"');
+
+    doc.pipe(res);
+
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 40;
+    let y = margin;
+
+    doc
+      .roundedRect(
+        margin - 15,
+        margin - 15,
+        pageWidth - 50,
+        pageHeight - 50,
+        10
+      )
+      .lineWidth(1)
+      .stroke("#999");
+
+    const logoPath = path.join(process.cwd(), "dist/icon.jpg");
+    doc.image(logoPath, margin, y, { width: 60 });
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(26)
+      .fillColor("#2c2c2c")
+      .text("RELAX THAI SPA", margin + 80, y + 10);
+
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#555")
+      .text("Wellness • Therapy • Relaxation", margin + 80, y + 40);
+
+    doc.fontSize(10).text(`Date: ${date || ""}`, pageWidth - 180, y + 20);
+
+    y += 90;
+
+    doc
+      .moveTo(margin, y)
+      .lineTo(pageWidth - margin, y)
+      .stroke("#ccc");
+    y += 25;
+
+    const drawField = (label, value, x, y, w = 240) => {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .fillColor("#333")
+        .text(label, x, y);
+      doc.roundedRect(x, y + 14, w, 26, 5).stroke("#aaa");
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("#000")
+        .text(value || "", x + 8, y + 22);
     };
 
-    const sheetResult = await appendAdminToSheet(formData);
+    drawField("Client Name", name, margin, y);
+    drawField("Membership Card No", membership, pageWidth / 2 + 10, y, 200);
+    y += 55;
+    drawField("Room No", roomNo, margin, y, 150);
 
-    if (!sheetResult.success) {
-      throw new Error(sheetResult.error);
-    }
+    y += 55;
 
-    try {
-      await sendNotification(formData);
-    } catch (notifError) {
-      console.error("Notification failed:", notifError.message);
-    }
+    drawField("Address", address, margin, y, pageWidth - margin * 2);
 
-    res.status(200).json({
-      success: true,
-      message: "Form saved successfully!",
-      data: {
-        id: sheetResult.rowNumber,
-        timestamp: formData.timestamp,
-      },
-    });
-  } catch (error) {
-    console.error("Error saving form:", error);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error.",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    y += 55;
+
+    drawField("Contact No", contact, margin, y);
+    drawField("Payment Mode", paymentMode, pageWidth / 2 + 10, y);
+
+    y += 70;
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .fillColor("#2c2c2c")
+      .text("Service Details", margin, y);
+
+    y += 15;
+    doc
+      .moveTo(margin, y)
+      .lineTo(pageWidth - margin, y)
+      .stroke("#ccc");
+    y += 25;
+
+    const drawBox = (label, value, x, y, w = 180, h = 30) => {
+      doc.font("Helvetica").fontSize(10).fillColor("#333").text(label, x, y);
+      doc.roundedRect(x, y + 14, w, h, 5).stroke("#aaa");
+      doc.text(value || "", x + 8, y + 24);
+    };
+
+    drawBox("Time In", timeIn, margin, y);
+    drawBox("Time Out", timeOut, margin, y + 55);
+    drawBox("Duration", duration, margin, y + 110);
+    drawBox("Price", price, margin, y + 165);
+
+    drawBox("Therapy Name", therapyName, pageWidth / 2 + 10, y, 240, 70);
+
+    drawBox("Therapist", therapist, pageWidth / 2 + 10, y + 95, 240);
+
+    y += 260;
+
+    doc
+      .fontSize(10)
+      .fillColor("#444")
+      .text("Customer Signature", pageWidth - 200, y);
+
+    doc
+      .moveTo(pageWidth - 260, y + 15)
+      .lineTo(pageWidth - margin, y + 15)
+      .stroke("#333");
+
+    doc
+      .fontSize(9)
+      .fillColor("#777")
+      .text(
+        "Thank you for choosing Relax Thai Spa. We wish you wellness & relaxation.",
+        margin,
+        pageHeight - 80,
+        { align: "center", width: pageWidth - margin * 2 }
+      );
+
+    doc.end();
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
   }
 });
 
@@ -209,7 +303,7 @@ app.get("/api/admin/export", async (req, res) => {
 
     res.send(excelBuffer);
   } catch (error) {
-    console.error("❌ Error exporting admin excel:", error);
+    console.error("Error exporting admin excel:", error);
     res.status(500).json({
       success: false,
       message: "Failed to export admin data",
@@ -222,7 +316,6 @@ app.get("/api/export", async (req, res) => {
   try {
     const rows = await getTodayRows();
     if (!rows || rows.length <= 1) {
-      console.log("no suB");
 
       return res.status(200).json({
         success: false,

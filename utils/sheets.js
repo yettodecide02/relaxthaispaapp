@@ -64,7 +64,7 @@ async function appendAdminToSheet(formData) {
     const spreadsheetId = process.env.ADMIN_SHEET_ID;
 
     const row = [
-      formData.timestamp,
+      new Date().toISOString().replace("T", " ").split(".")[0],
       formData.name,
       formData.roomNo,
       formData.address,
