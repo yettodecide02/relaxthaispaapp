@@ -11,6 +11,9 @@ async function sendWhatsAppMessage({ to, templateName, params }) {
     return;
   }
 
+  console.log("In whatsapp");
+  
+
   const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 
   const body = {
@@ -28,6 +31,9 @@ async function sendWhatsAppMessage({ to, templateName, params }) {
       ],
     },
   };
+
+  console.log(body);
+  
 
   try {
     const res = await axios.post(url, body, {

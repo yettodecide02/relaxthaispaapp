@@ -72,16 +72,19 @@ app.post("/api/submit", async (req, res) => {
 
     try {
       await sendNotification(formData);
+      const combinedMessage = `Hello ${firstName},
+
+      You have received a new form submission.
+
+      📞 Phone: ${phone}
+      🛠 Service: ${service}
+      📅 Date & Time: ${date} ${time}
+      💬 Message: ${message || "No message"}`;
+
       await sendWhatsAppMessage({
         to: process.env.ADMIN_WA_NUMBER,
         templateName: "form_submission_alert",
-        params: [
-          firstName,
-          phone,
-          service,
-          `${date} ${time}`,
-          message || "No message",
-        ],
+        params: [combinedMessage],
       });
     } catch (notifError) {
       console.error("WhatsApp notification failed:", notifError.message);
@@ -274,7 +277,6 @@ app.post("/api/admin/submit", async (req, res) => {
       );
 
     doc.end();
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false });
@@ -316,7 +318,6 @@ app.get("/api/export", async (req, res) => {
   try {
     const rows = await getTodayRows();
     if (!rows || rows.length <= 1) {
-
       return res.status(200).json({
         success: false,
         message: "No submissions found for today.",
