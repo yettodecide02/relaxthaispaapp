@@ -22,6 +22,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "dist")));
 
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.sendFile(path.join(__dirname, "robots.txt"));
+});
+
 app.post("/api/submit", async (req, res) => {
   try {
     const { service, date, time, firstName, email, phone, message } = req.body;
@@ -138,10 +143,10 @@ app.post("/api/admin/submit", async (req, res) => {
       price,
     } = req.body;
 
-    if (!name || !therapyName || !date) {
+    if (!name || !therapyName || !date || !price || !paymentMode) {
       return res.status(400).json({
         success: false,
-        error: "Please fill all required fields (name, therapy name, date).",
+        error: "Please fill all required fields (name, therapy name, date, price, payment mode).",
       });
     }
 
