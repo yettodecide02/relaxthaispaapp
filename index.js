@@ -3,6 +3,7 @@ const path = require("path");
 const cors = require("cors");
 const PDFDocument = require("pdfkit");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 
 const {
   appendToSheet,
@@ -21,6 +22,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "dist")));
+
+const adminAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain");
@@ -117,13 +137,15 @@ app.post("/api/submit", async (req, res) => {
 app.post("/api/admin/check-password", (req, res) => {
   const adminPassword = process.env.ADMIN_PASSWORD;
   const { password } = req.body;
-
   if (password === adminPassword) {
-    res.status(200).json({ ok: true });
+    const token = jwt.sign({ role: "admin" }, process.env.JWT_SECRET);
+    res.status(200).json({ ok: true, token });
   } else {
     res.status(401).json({ ok: false, error: "Incorrect password" });
   }
 });
+
+app.use("/api", adminAuth);
 
 app.post("/api/admin/submit", async (req, res) => {
   try {
@@ -146,7 +168,8 @@ app.post("/api/admin/submit", async (req, res) => {
     if (!name || !therapyName || !date || !price || !paymentMode) {
       return res.status(400).json({
         success: false,
-        error: "Please fill all required fields (name, therapy name, date, price, payment mode).",
+        error:
+          "Please fill all required fields (name, therapy name, date, price, payment mode).",
       });
     }
 
