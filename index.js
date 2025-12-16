@@ -199,7 +199,7 @@ app.post("/api/admin/submit", async (req, res) => {
       .lineWidth(1)
       .stroke("#999");
 
-    const logoPath = path.join(process.cwd(), "dist/icon.jpg");
+    const logoPath = path.join(process.cwd(), "dist/logo.png");
     doc.image(logoPath, margin, y, { width: 60 });
 
     doc
