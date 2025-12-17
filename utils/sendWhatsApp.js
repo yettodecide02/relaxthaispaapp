@@ -7,12 +7,8 @@ async function sendWhatsAppMessage({ to, templateName, params }) {
   const apiVersion = process.env.META_WA_API_VERSION || "v19.0";
 
   if (!token || !phoneNumberId) {
-    console.error("Missing WhatsApp API credentials in env");
-    return;
+    throw new Error("Missing WhatsApp API credentials in env");
   }
-
-  console.log("In whatsapp");
-  
 
   const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 
@@ -26,14 +22,16 @@ async function sendWhatsAppMessage({ to, templateName, params }) {
       components: [
         {
           type: "body",
-          parameters: params.map((p) => ({ type: "text", text: String(p) })),
+          parameters: Object.values(params).map((value) => ({
+            type: "text",
+            text: String(value),
+          })),
         },
       ],
     },
   };
 
-  console.log(body);
-  
+  console.log("WA payload:", JSON.stringify(body, null, 2));
 
   try {
     const res = await axios.post(url, body, {

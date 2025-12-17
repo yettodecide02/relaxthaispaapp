@@ -97,15 +97,13 @@ app.post("/api/submit", async (req, res) => {
 
     try {
       await sendNotification(formData);
-      const combinedMessage = `Hello ${firstName},
-
-      You have received a new form submission.
-
+      const combinedMessage = `
+      👤 Name: ${firstName}
       📞 Phone: ${phone}
       🛠 Service: ${service}
       📅 Date & Time: ${date} ${time}
-      💬 Message: ${message || "No message"}`;
-
+      💬 Message: ${message || "No message"}`
+;
       await sendWhatsAppMessage({
         to: process.env.ADMIN_WA_NUMBER,
         templateName: "form_submission_alert",
