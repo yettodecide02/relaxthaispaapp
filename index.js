@@ -21,7 +21,20 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "dist")));
+app.use(
+  express.static(path.join(__dirname, "dist"), {
+    immutable: true,
+    maxAge: "1y",
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith("index.html")) {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, proxy-revalidate"
+        );
+      }
+    },
+  })
+);
 
 const adminAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -432,6 +445,10 @@ app.get("/api/stats", async (req, res) => {
 });
 
 app.get("*", (req, res) => {
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
