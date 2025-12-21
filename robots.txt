@@ -1,3 +1,9 @@
 User-agent: *
+User-agent: *
 Allow: /
-Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /src/
+
+Sitemap: https://www.relaxthaispavizag.com/sitemap.xml
