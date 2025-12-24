@@ -21,6 +21,19 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  const isPaid = String(process.env.PAID).toLowerCase() === "true";
+
+  if (req.path.startsWith("/api") || req.path === "/robots.txt") {
+    return next();
+  }
+  if (!isPaid && req.path !== "/error.html") {
+    return res.sendFile(path.join(__dirname, "dist", "error.html"));
+  }
+
+  next();
+});
+
 app.use(
   express.static(path.join(__dirname, "dist"), {
     immutable: true,
@@ -115,8 +128,7 @@ app.post("/api/submit", async (req, res) => {
       📞 Phone: ${phone}
       🛠 Service: ${service}
       📅 Date & Time: ${date} ${time}
-      💬 Message: ${message || "No message"}`
-;
+      💬 Message: ${message || "No message"}`;
       await sendWhatsAppMessage({
         to: process.env.ADMIN_WA_NUMBER,
         templateName: "form_submission_alert",
@@ -445,11 +457,18 @@ app.get("/api/stats", async (req, res) => {
 });
 
 app.get("*", (req, res) => {
+  const isPaid = String(process.env.PAID).toLowerCase() === "true";
+
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate"
   );
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+
+  if (isPaid) {
+    return res.sendFile(path.join(__dirname, "dist", "index.html"));
+  } else {
+    return res.sendFile(path.join(__dirname, "dist", "error.html"));
+  }
 });
 
 app.use((err, req, res, next) => {
